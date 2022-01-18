@@ -10,6 +10,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.LiteralText;
 import net.minecraft.util.Pair;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class ModsCommand {
@@ -23,8 +24,8 @@ public class ModsCommand {
                 .executes(ModsCommand::updateMods)
         );
 
-        dispatcher.register(CommandManager.literal("downloadmods").requires(source -> source.hasPermissionLevel(4))
-                .executes(ModsCommand::downloadMods)
+        dispatcher.register(CommandManager.literal("syncmods").requires(source -> source.hasPermissionLevel(4))
+                .executes(ModsCommand::syncMods)
         );
     }
 
@@ -39,21 +40,27 @@ public class ModsCommand {
         return 1;
     }
 
-    private static int downloadMods(CommandContext<ServerCommandSource> context) {
+    private static int syncMods(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
+        ArrayList<String> keepingMods = new ArrayList<>();
         source.sendFeedback(new LiteralText("Downloading..."), false);
+
         Settings.getServerSideMods().forEach((name, version) -> {
+            keepingMods.add(version.toString());
             ModrinthAPI.downloadMod(version.toString());
             source.sendFeedback(new LiteralText("Downloaded: " + name + " | " + version), false);
         });
         Settings.getRequiredMods().forEach((name, version) -> {
+            keepingMods.add(version.toString());
             ModrinthAPI.downloadMod(version.toString());
             source.sendFeedback(new LiteralText("Downloaded: " + name + " | " + version), false);
         });
         Settings.getRecommendedMods().forEach((name, version) -> {
+            keepingMods.add(version.toString());
             ModrinthAPI.downloadMod(version.toString());
             source.sendFeedback(new LiteralText("Downloaded: " + name + " | " + version), false);
         });
+
         source.sendFeedback(new LiteralText("Done. Changes will take effect on the next reboot"), false);
         return 1;
     }

@@ -43,10 +43,6 @@ public class Settings {
                 e.printStackTrace();
             }
         } else {
-            serverSideMods.clear();
-            requiredMods.clear();
-            recommendedMods.clear();
-
             Toml toml = new Toml().read(file);
             serverSideMods = toml.getTable("ServerSideMods").toMap();
             requiredMods = toml.getTable("RequiredMods").toMap();

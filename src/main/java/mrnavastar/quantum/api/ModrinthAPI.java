@@ -16,6 +16,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.text.DateFormatSymbols;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.text.spi.DateFormatProvider;
+import java.util.Date;
 import java.util.HashMap;
 
 public class ModrinthAPI {
@@ -44,6 +49,7 @@ public class ModrinthAPI {
     }
 
     private static String getUpdate(String versionId) {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         try {
             //Make request
             HttpRequest request = HttpRequest.newBuilder().GET().uri(URI.create(MODRINTH_URL + "/version/" + versionId)).build();
@@ -55,7 +61,14 @@ public class ModrinthAPI {
             for (JsonElement element : json2) {
                 JsonObject version = element.getAsJsonObject();
                 String newVersionId = version.get("id").getAsString();
-                if (!newVersionId.equals(versionId)) {
+
+                String name = version.get("name").getAsString().toLowerCase();
+                String versionNumber = version.get("version_number").getAsString().toLowerCase();
+
+                Date date = format.parse(json.get("date_published").getAsString());
+                Date newDate = format.parse(version.get("date_published").getAsString());
+
+                if (!newVersionId.equals(versionId) && date.compareTo(newDate) < 0 && !name.contains("forge") && !versionNumber.contains("forge")) {
                     for (JsonElement element2 : version.getAsJsonArray("game_versions")) {
                         if (element2.getAsString().equals(Quantum.gameVersion)) {
                             return newVersionId;
@@ -64,7 +77,7 @@ public class ModrinthAPI {
                 }
             }
 
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException | ParseException e) {
             e.printStackTrace();
         }
         return null;
