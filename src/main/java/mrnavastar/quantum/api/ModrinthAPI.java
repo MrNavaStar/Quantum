@@ -6,20 +6,18 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import mrnavastar.quantum.Quantum;
 import mrnavastar.quantum.util.FileHelpers;
-import mrnavastar.quantum.util.ModManager;
+import mrnavastar.quantum.services.ModManager;
 import mrnavastar.quantum.util.Settings;
+import mrnavastar.quantum.util.datatypes.Mod;
 import net.minecraft.util.Pair;
-import org.apache.logging.log4j.Level;
 
 import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.text.DateFormatSymbols;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.text.spi.DateFormatProvider;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -28,20 +26,22 @@ public class ModrinthAPI {
     private static final String MODRINTH_URL = "https://api.modrinth.com/api/v1";
     private static final HttpClient client = HttpClient.newHttpClient();
 
-    public static void downloadMod(String versionId) {
+    public static void downloadMod(Mod mod) {
         try {
             //Make Request
-            HttpRequest request = HttpRequest.newBuilder().GET().uri(URI.create(MODRINTH_URL + "/version/" + versionId)).build();
+            HttpRequest request = HttpRequest.newBuilder().GET().uri(URI.create(MODRINTH_URL + "/version/" + mod.getVersionId())).build();
             JsonObject json = (JsonObject) JsonParser.parseString(client.send(request, HttpResponse.BodyHandlers.ofString()).body());
 
             for (JsonElement element2 : json.getAsJsonArray("files")) {
                 JsonObject file = element2.getAsJsonObject();
                 String filename = file.get("filename").getAsString();
 
-                //Download file
+                //Download file + write metadata
                 String filePath = ModManager.modsFolder + "/" + filename;
                 FileHelpers.downloadFile(filePath, file.get("url").getAsString());
-                FileHelpers.writeMetaData(filePath, "versionId", versionId);
+                FileHelpers.writeMetaData(filePath, "name", mod.getName());
+                FileHelpers.writeMetaData(filePath, "versionId", mod.getVersionId());
+                FileHelpers.writeMetaData(filePath, "type", mod.getType());
             }
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();

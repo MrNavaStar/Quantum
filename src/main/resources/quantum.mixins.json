@@ -4,6 +4,7 @@
   "package": "mrnavastar.quantum.mixin",
   "compatibilityLevel": "JAVA_16",
   "mixins": [
+    "ConnectScreenMixin"
   ],
   "client": [
   ],

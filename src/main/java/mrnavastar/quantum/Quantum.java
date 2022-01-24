@@ -1,10 +1,9 @@
 package mrnavastar.quantum;
 
-import mrnavastar.quantum.api.SyncAPI;
-import mrnavastar.quantum.commands.ConfigCommand;
+import mrnavastar.quantum.api.ServerSyncAPI;
 import mrnavastar.quantum.commands.ModsCommand;
 import mrnavastar.quantum.util.FileHelpers;
-import mrnavastar.quantum.util.ModManager;
+import mrnavastar.quantum.services.ModManager;
 import mrnavastar.quantum.util.Settings;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
@@ -28,6 +27,7 @@ public class Quantum implements ModInitializer {
         }
 
         Settings.init();
+        ModManager.init();
 
         for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
             ModMetadata modData = mod.getMetadata();
@@ -39,21 +39,16 @@ public class Quantum implements ModInitializer {
 
         if (FabricLoader.getInstance().getEnvironmentType().equals(EnvType.SERVER)) {
             log(Level.INFO, "Server initializing...");
-            SyncAPI.init();
-
-            CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
-                ModsCommand.register(dispatcher);
-                ConfigCommand.register(dispatcher);
-            });
+            ServerSyncAPI.init();
         }
 
         if (FabricLoader.getInstance().getEnvironmentType().equals(EnvType.CLIENT)) {
             log(Level.INFO, "Client initializing...");
-            ModManager.init();
-            //SyncAPI.sync("http://localhost:11722");
         }
 
-        //ModrinthAPI.downloadMod("U9Cb1VzA");
+        CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
+            ModsCommand.register(dispatcher);
+        });
     }
 
     public static void log(Level level, String message) {

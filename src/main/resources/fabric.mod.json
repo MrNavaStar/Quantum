@@ -12,9 +12,6 @@
   "icon": "assets/quantum/icon.png",
   "environment": "*",
   "entrypoints": {
-    "client": [
-      "mrnavastar.quantum.client.QuantumClient"
-    ],
     "main": [
       "mrnavastar.quantum.Quantum"
     ]

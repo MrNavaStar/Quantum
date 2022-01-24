@@ -16,32 +16,38 @@ public class Settings {
     private static Map<String, Object> serverSideMods = new HashMap<>();
     private static Map<String, Object> requiredMods = new HashMap<>();
     private static Map<String, Object> recommendedMods = new HashMap<>();
+    private static Map<String, Object> whitelist = new HashMap<>();
+
+    static class Template {
+        final Map<String, Object> ServerSideMods = serverSideMods;
+        final Map<String, Object> RequiredMods = requiredMods;
+        final Map<String, Object> RecommendedMods = recommendedMods;
+    }
+
+    private static void saveFile(Template template) {
+        try {
+            TomlWriter writer = new TomlWriter.Builder()
+                    .indentValuesBy(2)
+                    .indentTablesBy(4)
+                    .padArrayDelimitersBy(3)
+                    .build();
+            writer.write(template, file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void saveConfigState() {
+        saveFile(new Template());
+    }
 
     public static void init() {
         if (!file.exists()) {
-            try {
-                class Template {
-                    final HashMap<String, Object> General = new HashMap<>();
-                    final HashMap<String, String> ServerSideMods = new HashMap<>();
-                    final HashMap<String, String> RequiredMods = new HashMap<>();
-                    final HashMap<String, String> RecommendedMods = new HashMap<>();
-
-                    public Template() {
-                        ServerSideMods.put("example_mod", "version_id");
-                        RequiredMods.put("example_mod", "version_id");
-                        RecommendedMods.put("example_mod", "version_id");
-                    }
-                }
-
-                TomlWriter writer = new TomlWriter.Builder()
-                        .indentValuesBy(2)
-                        .indentTablesBy(4)
-                        .padArrayDelimitersBy(3)
-                        .build();
-                writer.write(new Template(), file);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            Template template = new Template();
+            template.ServerSideMods.put("example_mod", "version_id");
+            template.RequiredMods.put("example_mod", "version_id");
+            template.RecommendedMods.put("example_mod", "version_id");
+            saveFile(template);
         } else {
             Toml toml = new Toml().read(file);
             serverSideMods = toml.getTable("ServerSideMods").toMap();
@@ -52,6 +58,9 @@ public class Settings {
             requiredMods.remove("example_mod");
             recommendedMods.remove("example_mod");
         }
+
+        Toml toml = new Toml().read(Settings.class.getClassLoader().getResourceAsStream("modwhitelist.toml"));
+        whitelist = toml.getTable("Whitelist").toMap();
     }
 
     public static Map<String, Object> getServerSideMods() {
@@ -64,5 +73,9 @@ public class Settings {
 
     public static Map<String, Object> getRecommendedMods() {
         return recommendedMods;
+    }
+
+    public static Map<String, Object> getWhitelist() {
+        return whitelist;
     }
 }
