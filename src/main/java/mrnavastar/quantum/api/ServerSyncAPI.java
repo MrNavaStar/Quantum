@@ -29,6 +29,7 @@ public class ServerSyncAPI {
             HttpServer server = HttpServer.create(new InetSocketAddress(11722), 0);
             server.setExecutor(Executors.newFixedThreadPool(10));
             server.createContext("/mods", new ModsHttpHandler());
+            server.createContext("/ping", new PingHttpHandler());
             server.start();
             Quantum.log(Level.INFO, "Internal http server started");
         } catch (IOException e) {
@@ -36,23 +37,35 @@ public class ServerSyncAPI {
         }
     }
 
+    static class PingHttpHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equals("GET")) {
+                JsonObject json = new JsonObject();
+                json.addProperty("status", "online");
+
+                String response = json.toString();
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, response.length());
+                exchange.getResponseBody().write(response.getBytes());
+                exchange.close();
+            }
+        }
+    }
+
     static class ModsHttpHandler implements HttpHandler {
 
-        private void parseMod(ArrayList<String> clientModNames, ArrayList<String> clientModVersionIds, JsonArray mods, String name, String version) {
+        private void parseMod(ArrayList<String> clientModNames, ArrayList<String> clientModVersionIds, JsonArray mods, String name, String version, String type) {
             JsonObject mod = new JsonObject();
             mod.addProperty("name", name);
             mod.addProperty("version", version);
-            mod.addProperty("type", "required");
+            mod.addProperty("type", type);
 
             if (clientModNames.contains(name)) {
-                if (!clientModVersionIds.contains(version)) {
-                    mod.addProperty("action", "update");
-                    mods.add(mod);
-                }
-            } else {
-                mod.addProperty("action", "download");
-                mods.add(mod);
-            }
+                if (!clientModVersionIds.contains(version)) mod.addProperty("action", "update");
+            } else mod.addProperty("action", "download");
+            mods.add(mod);
         }
 
         @Override
@@ -70,12 +83,16 @@ public class ServerSyncAPI {
                 }
 
                 JsonObject json = new JsonObject();
-                json.addProperty("game_version", Quantum.gameVersion);
-
-                JsonArray mods = new JsonArray();
-                Settings.getRequiredMods().forEach((name, version) -> parseMod(clientModNames, clientModVersionIds, mods, name, version.toString()));
-                Settings.getRecommendedMods().forEach((name, version) -> parseMod(clientModNames, clientModVersionIds, mods, name, version.toString()));
-                json.add("mods", mods);
+                if (request.get("game_version").getAsString().equals(Quantum.gameVersion)) {
+                    json.addProperty("status", "good");
+                    JsonArray mods = new JsonArray();
+                    Settings.getRequiredMods().forEach((name, version) -> parseMod(clientModNames, clientModVersionIds, mods, name, version.toString(), "required"));
+                    Settings.getRecommendedMods().forEach((name, version) -> parseMod(clientModNames, clientModVersionIds, mods, name, version.toString(), "recommended"));
+                    json.add("mods", mods);
+                } else {
+                    json.addProperty("status", "failed");
+                    json.addProperty("error", "Server and client game version do not match!");
+                }
 
                 String response = json.toString();
                 exchange.getResponseHeaders().add("Content-Type", "application/json");

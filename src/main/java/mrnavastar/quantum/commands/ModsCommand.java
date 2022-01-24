@@ -80,11 +80,11 @@ public class ModsCommand {
             keepingMods.forEach(mod -> {
                 if (!ModManager.isDownloaded(mod.getVersionId())) {
                     ModManager.downloadMod(mod);
-                    source.sendFeedback(new LiteralText("Downloaded: " + mod.getName() + " | " + mod.getVersionId()), false);
+                    source.sendFeedback(new LiteralText("Downloaded: " + mod), false);
                 } else source.sendFeedback(new LiteralText("Skipping: " + mod.getName()), false);
             });
 
-            ModManager.pruneMods(keepingMods).forEach(mod -> source.sendFeedback(new LiteralText("Removed: " + mod.getName() + " | " + mod.getVersionId()), false));
+            ModManager.pruneMods(keepingMods).forEach(mod -> source.sendFeedback(new LiteralText("Removed: " + mod), false));
         };
 
         Thread thread = new Thread(runnable);

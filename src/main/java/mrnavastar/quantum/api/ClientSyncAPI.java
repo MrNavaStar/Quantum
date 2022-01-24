@@ -5,18 +5,19 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import mrnavastar.quantum.Quantum;
+import mrnavastar.quantum.client.SyncScreen;
 import mrnavastar.quantum.services.ModManager;
 import mrnavastar.quantum.util.datatypes.Mod;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.util.Pair;
 import org.apache.logging.log4j.Level;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -28,23 +29,27 @@ public class ClientSyncAPI {
     private static final HttpClient client = HttpClient.newHttpClient();
 
     public static boolean syncServerOnline(String serverAddress) {
-        HttpURLConnection connection;
-        int code;
         try {
-            URL url = new URL(serverAddress);
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("HEAD");
-            code = connection.getResponseCode();
-        } catch (IOException e) { return false; }
-        connection.disconnect();
-        return code == 200;
+            HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .uri(new URI(serverAddress + "/ping"))
+                    .build();
+            JsonObject json = (JsonObject) JsonParser.parseString(client.send(request, HttpResponse.BodyHandlers.ofString()).body());
+            if (json.get("status").getAsString().equals("online")) return true;
+        } catch (URISyntaxException | InterruptedException | IOException ignore) {}
+        return false;
     }
 
-    public static void sync(String serverAddress) {
+    public static void sync(String serverAddress, MinecraftClient mclient) {
         if (!syncServerOnline(serverAddress)) {
             Quantum.log(Level.ERROR, "Sync server is offline!");
             return;
         }
+
+        mclient.setScreen(new SyncScreen(""));
+
+        JsonObject jsonRequest = new JsonObject();
+        jsonRequest.addProperty("game_version", Quantum.gameVersion);
 
         JsonArray jsonMods = new JsonArray();
         for (Mod modData : ModManager.downloadedMods.values()) {
@@ -54,16 +59,17 @@ public class ClientSyncAPI {
             mod.addProperty("type", modData.getType());
             jsonMods.add(mod);
         }
+        jsonRequest.add("mods", jsonMods);
 
         try {
             HttpRequest request = HttpRequest.newBuilder()
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonMods.toString()))
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonRequest.toString()))
                     .uri(new URI(serverAddress + "/mods"))
                     .build();
             JsonObject json = (JsonObject) JsonParser.parseString(client.send(request, HttpResponse.BodyHandlers.ofString()).body());
 
-            if (!Quantum.gameVersion.equals(json.get("game_version").getAsString())) {
-                Quantum.log(Level.ERROR, "Server and client version do not match! Unable to sync mods");
+            if (!json.get("status").getAsString().equals("good")) {
+                Quantum.log(Level.ERROR, json.get("error").getAsString());
                 return;
             }
 
@@ -75,12 +81,14 @@ public class ClientSyncAPI {
 
                 if (action.equals("download")) {
                     ModManager.downloadMod(mod);
+                    mclient.setScreen(new SyncScreen("Downloaded: " + mod));
                     Quantum.log(Level.INFO, "Downloaded: " + mod);
                 }
                 if (action.equals("update")) {
                     for (Mod downloadedMod : ModManager.downloadedMods.values()) {
                         if (downloadedMod.getName().equals(mod.getName())) {
                             ModManager.updateMod(mod.getName(), new Pair<>(downloadedMod.getVersionId(), mod.getVersionId()));
+                            mclient.setScreen(new SyncScreen("Updated: " + mod));
                             Quantum.log(Level.INFO, "Updated: " + mod);
                             break;
                         }
